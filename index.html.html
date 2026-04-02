@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vamsa - Visual Family Tree</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #faf8f5;
+            --bg-secondary: #f5f1eb;
+            --accent: #8b5a3c;
+            --accent-light: #b8916d;
+            --text-primary: #2d2520;
+            --text-secondary: #6b5d56;
+            --border: #d4c8bc;
+            --card-bg: #ffffff;
+            --shadow: rgba(45, 37, 32, 0.08);
+            --branch-color: #a67c52;
+        }
+
+        body {
+            font-family: 'Crimson Pro', serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 0;
+            overflow-x: auto;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 20px var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 0.3rem;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            opacity: 0.95;
+            letter-spacing: 2px;
+        }
+
+        .controls {
+            background: var(--card-bg);
+            padding: 1rem 2rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 10px var(--shadow);
+        }
+
+        .btn {
+            padding: 0.6rem 1.5rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Crimson Pro', serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: var(--accent-light);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: var(--text-secondary);
+        }
+
+        .tree-container {
+            padding: 3rem;
+            overflow-x: auto;
+            min-height: calc(100vh - 200px);
+        }
+
+        /* Tree Structure */
+        .tree {
+            display: flex;
+            justify-content: center;
+            position: relative;
+        }
+
+        .tree ul {
+            padding-top: 40px;
+            position: relative;
+            transition: all 0.5s;
+            display: flex;
+        }
+
+        .tree li {
+            float: left;
+            text-align: center;
+            list-style-type: none;
+            position: relative;
+            padding: 40px 10px 0 10px;
+            transition: all 0.5s;
+        }
+
+        /* Vertical line from parent */
+        .tree li::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 50%;
+            border-left: 3px solid var(--branch-color);
+            width: 0;
+            height: 40px;
+        }
+
+        /* Horizontal line */
+        .tree li::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 50%;
+            border-top: 3px solid var(--branch-color);
+            width: 50%;
+            height: 40px;
+        }
+
+        /* Remove connectors for root */
+        .tree > ul > li::before,
+        .tree > ul > li::after {
+            border: 0;
+        }
+
+        /* Right side horizontal line */
+        .tree li:not(:only-child)::after {
+            right: auto;
+            left: 50%;
+            border-left: 3px solid var(--branch-color);
+        }
+
+        /* Remove right connector for only child */
+        .tree li:only-child::after {
+            display: none;
+        }
+
+        /* Remove left connector for first child */
+        .tree li:first-child::before {
+            border: 0;
+        }
+
+        /* Remove right connector for last child */
+        .tree li:last-child::before {
+            border-right: 3px solid var(--branch-color);
+            border-radius: 0 5px 0 0;
+        }
+
+        /* Add back the vertical connector for last child */
+        .tree li:last-child::after {
+            border-radius: 5px 0 0 0;
+        }
+
+        /* Member Card */
+        .member-card {
+            border: 3px solid var(--accent);
+            border-radius: 16px;
+            padding: 1rem;
+            display: inline-block;
+            background: linear-gradient(135deg, #ffffff 0%, #fefdfb 100%);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 180px;
+            max-width: 200px;
+            position: relative;
+            box-shadow: 0 4px 15px var(--shadow);
+            text-align: center;
+        }
+
+        .member-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(139, 90, 60, 0.3);
+            border-color: var(--accent-light);
+        }
+
+        .member-card.root {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+            color: white;
+            border-color: var(--accent);
+            min-width: 220px;
+            padding: 1.5rem;
+        }
+
+        .member-card.empty {
+            background: linear-gradient(135deg, #f8f6f3 0%, #f0ede8 100%);
+            border-style: dashed;
+            border-color: var(--border);
+            opacity: 0.7;
+        }
+
+        .member-card.empty:hover {
+            opacity: 1;
+        }
+
+        /* Photo Display */
+        .member-photo {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--accent-light);
+            margin: 0 auto 0.8rem;
+            background: var(--bg-secondary);
+            display: block;
+        }
+
+        .member-card.root .member-photo {
+            border-color: rgba(255,255,255,0.8);
+            width: 100px;
+            height: 100px;
+        }
+
+        .no-photo {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.8rem;
+            border: 3px solid var(--border);
+            font-size: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .member-card.root .no-photo {
+            width: 100px;
+            height: 100px;
+            font-size: 2.5rem;
+            border-color: rgba(255,255,255,0.8);
+        }
+
+        .member-name {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 0.3rem;
+            color: inherit;
+            min-height: 1.2rem;
+        }
+
+        .member-relation {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            opacity: 0.9;
+            font-style: italic;
+            margin-bottom: 0.5rem;
+        }
+
+        .member-card.root .member-relation {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .member-code {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: var(--accent);
+            color: white;
+            padding: 0.25rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .member-card.root .member-code {
+            display: none;
+        }
+
+        /* Action Buttons */
+        .member-actions {
+            display: flex;
+            gap: 0.3rem;
+            margin-top: 0.8rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .action-btn {
+            padding: 0.4rem 0.8rem;
+            background: var(--accent-light);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .action-btn:hover {
+            background: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .action-btn.photo-btn {
+            background: #4a7c59;
+        }
+
+        .action-btn.video-btn {
+            background: #c93838;
+        }
+
+        .action-btn.view-btn {
+            background: #5a7c9d;
+        }
+
+        /* Expand/Collapse Button */
+        .expand-toggle {
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent);
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .expand-toggle:hover {
+            transform: translateX(-50%) scale(1.2);
+            background: var(--accent-light);
+        }
+
+        /* Collapsed state */
+        .tree li.collapsed > ul {
+            display: none;
+        }
+
+        .tree li.collapsed > .expand-toggle::before {
+            content: '+';
+        }
+
+        .expand-toggle::before {
+            content: '−';
+        }
+
+        /* Generation Label */
+        .generation-label {
+            position: absolute;
+            left: -100px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--accent);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 10px var(--shadow);
+            white-space: nowrap;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(45, 37, 32, 0.9);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--accent);
+            text-align: center;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: var(--text-secondary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal input[type="text"],
+        .modal textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-family: 'Crimson Pro', serif;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .modal input:focus,
+        .modal textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .upload-area {
+            border: 3px dashed var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            margin: 1rem 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: var(--accent);
+            background: var(--bg-secondary);
+        }
+
+        .upload-area.drag-over {
+            border-color: var(--accent);
+            background: var(--bg-secondary);
+        }
+
+        .file-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .file-preview-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .file-preview-item img,
+        .file-preview-item video {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+        }
+
+        .file-preview-item .remove-file {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .media-count {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 0.3rem;
+        }
+
+        .gallery-view {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            padding: 1rem 0;
+        }
+
+        .gallery-item {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px var(--shadow);
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.05);
+        }
+
+        .gallery-item img,
+        .gallery-item video {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        @media (max-width: 768px) {
+            .tree-container {
+                padding: 1rem;
+            }
+
+            .member-card {
+                min-width: 140px;
+            }
+
+            .generation-label {
+                position: static;
+                transform: none;
+                margin-bottom: 1rem;
+                display: inline-block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌳 वंश वृक्षम् 🌳</h1>
+        <div class="subtitle">Visual Family Tree - Kasulu & Nageshwaramma</div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="expandAll()">🌿 Expand All</button>
+        <button class="btn" onclick="collapseAll()">🍂 Collapse All</button>
+        <button class="btn btn-secondary" onclick="exportData()">💾 Export Data</button>
+    </div>
+
+    <div class="tree-container">
+        <div class="tree" id="familyTree"></div>
+    </div>
+
+    <!-- Edit Member Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">×</button>
+            <div class="modal-header">Edit Member</div>
+            
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Name</label>
+            <input type="text" id="nameInput" placeholder="Enter name (e.g., John & Jane Smith)">
+            
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Upload Photos</label>
+            <div class="upload-area" id="photoUpload">
+                <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">📸 Click or drag photos here</p>
+                <input type="file" id="photoInput" accept="image/*" multiple style="display: none;">
+                <button class="btn" onclick="document.getElementById('photoInput').click()">Choose Photos</button>
+            </div>
+            <div class="file-preview" id="photoPreview"></div>
+
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; margin-top: 1.5rem;">Upload Videos</label>
+            <div class="upload-area" id="videoUpload">
+                <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">🎥 Click or drag videos here</p>
+                <input type="file" id="videoInput" accept="video/*" multiple style="display: none;">
+                <button class="btn" onclick="document.getElementById('videoInput').click()">Choose Videos</button>
+            </div>
+            <div class="file-preview" id="videoPreview"></div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button class="btn" onclick="saveMember()" style="flex: 1;">💾 Save</button>
+                <button class="btn btn-secondary" onclick="closeModal()" style="flex: 1;">✖ Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Gallery Modal -->
+    <div class="modal" id="galleryModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeGalleryModal()">×</button>
+            <div class="modal-header" id="galleryTitle">Media Gallery</div>
+            <div class="gallery-view" id="galleryContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Family tree data structure
+        let familyData = {
+            "ROOT": {
+                id: "ROOT",
+                name: "JAJULA KASULU & NAGESHWARAMMA",
+                generation: 0,
+                relation: "Root Ancestors",
+                code: "ROOT",
+                children: ["1S", "1D", "2S", "3S", "4S", "5S", "2D"],
+                photos: [],
+                videos: []
+            },
+            "1S": { id: "1S", name: "BASAVAYYA & MANIKYAMMA", generation: 1, relation: "1st Son", code: "1S", children: ["1S1S", "1S1D"], photos: [], videos: [] },
+            "1D": { id: "1D", name: "DHANALAKSHMI & SRIRAMMURTHY", generation: 1, relation: "1st Daughter", code: "1D", children: ["1D1D", "1D2D"], photos: [], videos: [] },
+            "2S": { id: "2S", name: "VENKATARAMA RAJU & RANGAMMA", generation: 1, relation: "2nd Son", code: "2S", children: ["2S1D", "2S2D", "2S3D", "2S1S"], photos: [], videos: [] },
+            "3S": { id: "3S", name: "NAGESHWARRAO & SITAMAHALAKSHMI", generation: 1, relation: "3rd Son", code: "3S", children: ["3S1D"], photos: [], videos: [] },
+            "4S": { id: "4S", name: "BHAGAVAN NARAYANA & KALASATYAVATHI", generation: 1, relation: "4th Son", code: "4S", children: ["4S1S", "4S2S"], photos: [], videos: [] },
+            "5S": { id: "5S", name: "SHOBANADRI & MARIYAMMA", generation: 1, relation: "5th Son", code: "5S", children: ["5S1S"], photos: [], videos: [] },
+            "2D": { id: "2D", name: "VARALAKSHMI & PRASAD", generation: 1, relation: "2nd Daughter", code: "2D", children: ["2D1D", "2D2D", "2D3D", "2D1S"], photos: [], videos: [] },
+            "1S1S": { id: "1S1S", name: "", generation: 2, relation: "1st Son → 1st Son", code: "1S1S", children: ["1S1S1D", "1S1S1S", "1S1S2S"], photos: [], videos: [] },
+            "1S1S1D": { id: "1S1S1D", name: "", generation: 3, relation: "1st Son → 1st Son → 1st Daughter", code: "1S1S1D", children: [], photos: [], videos: [] },
+            "1S1S1S": { id: "1S1S1S", name: "", generation: 3, relation: "1st Son → 1st Son → 1st Son", code: "1S1S1S", children: [], photos: [], videos: [] },
+            "1S1S2S": { id: "1S1S2S", name: "", generation: 3, relation: "1st Son → 1st Son → 2nd Son", code: "1S1S2S", children: [], photos: [], videos: [] },
+            "1S1D": { id: "1S1D", name: "", generation: 2, relation: "1st Son → 1st Daughter", code: "1S1D", children: ["1S1D1S", "1S1D2S"], photos: [], videos: [] },
+            "1S1D1S": { id: "1S1D1S", name: "", generation: 3, relation: "1st Son → 1st Daughter → 1st Son", code: "1S1D1S", children: [], photos: [], videos: [] },
+            "1S1D2S": { id: "1S1D2S", name: "", generation: 3, relation: "1st Son → 1st Daughter → 2nd Son", code: "1S1D2S", children: [], photos: [], videos: [] },
+            "1D1D": { id: "1D1D", name: "", generation: 2, relation: "1st Daughter → 1st Daughter", code: "1D1D", children: ["1D1D1S", "1D1D2S", "1D1D1D", "1D1D2D"], photos: [], videos: [] },
+            "1D1D1S": { id: "1D1D1S", name: "", generation: 3, relation: "1st Daughter → 1st Daughter → 1st Son", code: "1D1D1S", children: ["1D1D1S1D", "1D1D1S2D"], photos: [], videos: [] },
+            "1D1D1S1D": { id: "1D1D1S1D", name: "", generation: 4, relation: "1st Daughter → 1st Daughter → 1st Son → 1st Daughter", code: "1D1D1S1D", children: [], photos: [], videos: [] },
+            "1D1D1S2D": { id: "1D1D1S2D", name: "", generation: 4, relation: "1st Daughter → 1st Daughter → 1st Son → 2nd Daughter", code: "1D1D1S2D", children: [], photos: [], videos: [] },
+            "1D1D2S": { id: "1D1D2S", name: "", generation: 3, relation: "1st Daughter → 1st Daughter → 2nd Son", code: "1D1D2S", children: ["1D1D2S1D", "1D1D2S1S"], photos: [], videos: [] },
+            "1D1D2S1D": { id: "1D1D2S1D", name: "", generation: 4, relation: "1st Daughter → 1st Daughter → 2nd Son → 1st Daughter", code: "1D1D2S1D", children: [], photos: [], videos: [] },
+            "1D1D2S1S": { id: "1D1D2S1S", name: "", generation: 4, relation: "1st Daughter → 1st Daughter → 2nd Son → 1st Son", code: "1D1D2S1S", children: [], photos: [], videos: [] },
+            "1D2D": { id: "1D2D", name: "", generation: 2, relation: "1st Daughter → 2nd Daughter", code: "1D2D", children: ["1D1D1D", "1D1D2D"], photos: [], videos: [] },
+            "1D1D1D": { id: "1D1D1D", name: "", generation: 3, relation: "1st Daughter → 1st Daughter → 1st Daughter", code: "1D1D1D", children: ["1D1D1D1D", "1D1D1D1S"], photos: [], videos: [] },
+            "1D1D1D1D": { id: "1D1D1D1D", name: "", generation: 4, relation: "1st Daughter → 1st Daughter → 1st Daughter → 1st Daughter", code: "1D1D1D1D", children: [], photos: [], videos: [] },
+            "1D1D1D1S": { id: "1D1D1D1S", name: "", generation: 4, relation: "1st Daughter → 1st Daughter → 1st Daughter → 1st Son", code: "1D1D1D1S", children: [], photos: [], videos: [] },
+            "1D1D2D": { id: "1D1D2D", name: "", generation: 3, relation: "1st Daughter → 1st Daughter → 2nd Daughter", code: "1D1D2D", children: ["1D1D2D1D"], photos: [], videos: [] },
+            "1D1D2D1D": { id: "1D1D2D1D", name: "", generation: 4, relation: "1st Daughter → 1st Daughter → 2nd Daughter → 1st Daughter", code: "1D1D2D1D", children: [], photos: [], videos: [] },
+            "2S1D": { id: "2S1D", name: "", generation: 2, relation: "2nd Son → 1st Daughter", code: "2S1D", children: ["2S1D1S", "2S1D2S"], photos: [], videos: [] },
+            "2S1D1S": { id: "2S1D1S", name: "", generation: 3, relation: "2nd Son → 1st Daughter → 1st Son", code: "2S1D1S", children: [], photos: [], videos: [] },
+            "2S1D2S": { id: "2S1D2S", name: "", generation: 3, relation: "2nd Son → 1st Daughter → 2nd Son", code: "2S1D2S", children: ["2S1D2S1S"], photos: [], videos: [] },
+            "2S1D2S1S": { id: "2S1D2S1S", name: "", generation: 4, relation: "2nd Son → 1st Daughter → 2nd Son → 1st Son", code: "2S1D2S1S", children: [], photos: [], videos: [] },
+            "2S2D": { id: "2S2D", name: "", generation: 2, relation: "2nd Son → 2nd Daughter", code: "2S2D", children: ["2S2D1S", "2S2D1D"], photos: [], videos: [] },
+            "2S2D1S": { id: "2S2D1S", name: "", generation: 3, relation: "2nd Son → 2nd Daughter → 1st Son", code: "2S2D1S", children: [], photos: [], videos: [] },
+            "2S2D1D": { id: "2S2D1D", name: "", generation: 3, relation: "2nd Son → 2nd Daughter → 1st Daughter", code: "2S2D1D", children: [], photos: [], videos: [] },
+            "2S3D": { id: "2S3D", name: "", generation: 2, relation: "2nd Son → 3rd Daughter", code: "2S3D", children: ["2S3D1S", "2S3D1D"], photos: [], videos: [] },
+            "2S3D1S": { id: "2S3D1S", name: "", generation: 3, relation: "2nd Son → 3rd Daughter → 1st Son", code: "2S3D1S", children: [], photos: [], videos: [] },
+            "2S3D1D": { id: "2S3D1D", name: "", generation: 3, relation: "2nd Son → 3rd Daughter → 1st Daughter", code: "2S3D1D", children: [], photos: [], videos: [] },
+            "2S1S": { id: "2S1S", name: "", generation: 2, relation: "2nd Son → 1st Son", code: "2S1S", children: ["2S1S1D", "2S1S2D"], photos: [], videos: [] },
+            "2S1S1D": { id: "2S1S1D", name: "", generation: 3, relation: "2nd Son → 1st Son → 1st Daughter", code: "2S1S1D", children: [], photos: [], videos: [] },
+            "2S1S2D": { id: "2S1S2D", name: "", generation: 3, relation: "2nd Son → 1st Son → 2nd Daughter", code: "2S1S2D", children: [], photos: [], videos: [] },
+            "3S1D": { id: "3S1D", name: "", generation: 2, relation: "3rd Son → 1st Daughter", code: "3S1D", children: ["3S1D1D", "3S1D1S"], photos: [], videos: [] },
+            "3S1D1D": { id: "3S1D1D", name: "", generation: 3, relation: "3rd Son → 1st Daughter → 1st Daughter", code: "3S1D1D", children: ["3S1D1D1D"], photos: [], videos: [] },
+            "3S1D1D1D": { id: "3S1D1D1D", name: "", generation: 4, relation: "3rd Son → 1st Daughter → 1st Daughter → 1st Daughter", code: "3S1D1D1D", children: [], photos: [], videos: [] },
+            "3S1D1S": { id: "3S1D1S", name: "", generation: 3, relation: "3rd Son → 1st Daughter → 1st Son", code: "3S1D1S", children: [], photos: [], videos: [] },
+            "4S1S": { id: "4S1S", name: "", generation: 2, relation: "4th Son → 1st Son", code: "4S1S", children: ["4S1S1D", "4S1S2D"], photos: [], videos: [] },
+            "4S1S1D": { id: "4S1S1D", name: "", generation: 3, relation: "4th Son → 1st Son → 1st Daughter", code: "4S1S1D", children: [], photos: [], videos: [] },
+            "4S1S2D": { id: "4S1S2D", name: "", generation: 3, relation: "4th Son → 1st Son → 2nd Daughter", code: "4S1S2D", children: [], photos: [], videos: [] },
+            "4S2S": { id: "4S2S", name: "", generation: 2, relation: "4th Son → 2nd Son", code: "4S2S", children: ["4S2S1D", "4S2S1S"], photos: [], videos: [] },
+            "4S2S1D": { id: "4S2S1D", name: "", generation: 3, relation: "4th Son → 2nd Son → 1st Daughter", code: "4S2S1D", children: [], photos: [], videos: [] },
+            "4S2S1S": { id: "4S2S1S", name: "", generation: 3, relation: "4th Son → 2nd Son → 1st Son", code: "4S2S1S", children: [], photos: [], videos: [] },
+            "5S1S": { id: "5S1S", name: "", generation: 2, relation: "5th Son → 1st Son", code: "5S1S", children: [], photos: [], videos: [] },
+            "2D1D": { id: "2D1D", name: "", generation: 2, relation: "2nd Daughter → 1st Daughter", code: "2D1D", children: ["2D1D1S", "2D1D2S"], photos: [], videos: [] },
+            "2D1D1S": { id: "2D1D1S", name: "", generation: 3, relation: "2nd Daughter → 1st Daughter → 1st Son", code: "2D1D1S", children: [], photos: [], videos: [] },
+            "2D1D2S": { id: "2D1D2S", name: "", generation: 3, relation: "2nd Daughter → 1st Daughter → 2nd Son", code: "2D1D2S", children: [], photos: [], videos: [] },
+            "2D2D": { id: "2D2D", name: "", generation: 2, relation: "2nd Daughter → 2nd Daughter", code: "2D2D", children: ["2D2D1S", "2D2D1D"], photos: [], videos: [] },
+            "2D2D1S": { id: "2D2D1S", name: "", generation: 3, relation: "2nd Daughter → 2nd Daughter → 1st Son", code: "2D2D1S", children: [], photos: [], videos: [] },
+            "2D2D1D": { id: "2D2D1D", name: "", generation: 3, relation: "2nd Daughter → 2nd Daughter → 1st Daughter", code: "2D2D1D", children: [], photos: [], videos: [] },
+            "2D3D": { id: "2D3D", name: "", generation: 2, relation: "2nd Daughter → 3rd Daughter", code: "2D3D", children: ["2D3D1S", "2D3D2S"], photos: [], videos: [] },
+            "2D3D1S": { id: "2D3D1S", name: "", generation: 3, relation: "2nd Daughter → 3rd Daughter → 1st Son", code: "2D3D1S", children: [], photos: [], videos: [] },
+            "2D3D2S": { id: "2D3D2S", name: "", generation: 3, relation: "2nd Daughter → 3rd Daughter → 2nd Son", code: "2D3D2S", children: [], photos: [], videos: [] },
+            "2D1S": { id: "2D1S", name: "", generation: 2, relation: "2nd Daughter → 1st Son", code: "2D1S", children: ["2D1S1D", "2D1S2D", "2D1S1S"], photos: [], videos: [] },
+            "2D1S1D": { id: "2D1S1D", name: "", generation: 3, relation: "2nd Daughter → 1st Son → 1st Daughter", code: "2D1S1D", children: [], photos: [], videos: [] },
+            "2D1S2D": { id: "2D1S2D", name: "", generation: 3, relation: "2nd Daughter → 1st Son → 2nd Daughter", code: "2D1S2D", children: [], photos: [], videos: [] },
+            "2D1S1S": { id: "2D1S1S", name: "", generation: 3, relation: "2nd Daughter → 1st Son → 1st Son", code: "2D1S1S", children: [], photos: [], videos: [] }
+        };
+
+        let currentEditId = null;
+        let tempPhotos = [];
+        let tempVideos = [];
+
+        // Create member card HTML
+        function createMemberCard(person) {
+            const isEmpty = !person.name;
+            const isRoot = person.id === 'ROOT';
+            const hasMedia = (person.photos?.length || 0) + (person.videos?.length || 0) > 0;
+            const photoUrl = person.photos && person.photos[0] ? person.photos[0] : null;
+
+            return `
+                <div class="member-card ${isRoot ? 'root' : ''} ${isEmpty ? 'empty' : ''}" data-id="${person.id}">
+                    ${!isRoot ? `<div class="member-code">${person.code}</div>` : ''}
+                    
+                    ${photoUrl ? 
+                        `<img src="${photoUrl}" class="member-photo" alt="${person.name}">` :
+                        `<div class="no-photo">${isRoot ? '👑' : '👤'}</div>`
+                    }
+                    
+                    <div class="member-name">${person.name || 'Click to add'}</div>
+                    <div class="member-relation">${person.relation}</div>
+                    
+                    ${hasMedia ? `<div class="media-count">📁 ${(person.photos?.length || 0) + (person.videos?.length || 0)} files</div>` : ''}
+                    
+                    <div class="member-actions">
+                        <button class="action-btn" onclick="editMember('${person.id}')">✏️ Edit</button>
+                        <button class="action-btn photo-btn" onclick="uploadPhoto('${person.id}')">📸 Photo</button>
+                        <button class="action-btn video-btn" onclick="uploadVideo('${person.id}')">🎥 Video</button>
+                        ${hasMedia ? `<button class="action-btn view-btn" onclick="viewGallery('${person.id}')">👁️ View</button>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Create tree node recursively
+        function createNode(person) {
+            const hasChildren = person.children && person.children.length > 0;
+            
+            return `
+                <li class="${hasChildren ? 'has-children' : ''}" data-id="${person.id}">
+                    ${createMemberCard(person)}
+                    ${hasChildren ? `<button class="expand-toggle" onclick="toggleNode(event, '${person.id}')"></button>` : ''}
+                    ${hasChildren ? `
+                        <ul>
+                            ${person.children.map(childId => createNode(familyData[childId])).join('')}
+                        </ul>
+                    ` : ''}
+                </li>
+            `;
+        }
+
+        // Render tree
+        function renderTree() {
+            const tree = document.getElementById('familyTree');
+            tree.innerHTML = `<ul>${createNode(familyData.ROOT)}</ul>`;
+            saveToLocalStorage();
+        }
+
+        // Toggle node expansion
+        function toggleNode(event, id) {
+            event.stopPropagation();
+            const li = event.target.closest('li');
+            li.classList.toggle('collapsed');
+        }
+
+        // Expand all nodes
+        function expandAll() {
+            document.querySelectorAll('.tree li.collapsed').forEach(li => {
+                li.classList.remove('collapsed');
+            });
+        }
+
+        // Collapse all nodes
+        function collapseAll() {
+            document.querySelectorAll('.tree li.has-children').forEach(li => {
+                li.classList.add('collapsed');
+            });
+        }
+
+        // Edit member
+        function editMember(id) {
+            currentEditId = id;
+            const person = familyData[id];
+            
+            document.getElementById('nameInput').value = person.name || '';
+            tempPhotos = [...(person.photos || [])];
+            tempVideos = [...(person.videos || [])];
+            
+            updateFilePreview();
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        // Upload shortcuts
+        function uploadPhoto(id) {
+            editMember(id);
+            setTimeout(() => document.getElementById('photoInput').click(), 100);
+        }
+
+        function uploadVideo(id) {
+            editMember(id);
+            setTimeout(() => document.getElementById('videoInput').click(), 100);
+        }
+
+        // Handle file selection
+        document.getElementById('photoInput').addEventListener('change', function(e) {
+            handleFiles(e.target.files, 'photo');
+        });
+
+        document.getElementById('videoInput').addEventListener('change', function(e) {
+            handleFiles(e.target.files, 'video');
+        });
+
+        // Handle drag and drop
+        ['photoUpload', 'videoUpload'].forEach(id => {
+            const area = document.getElementById(id);
+            
+            area.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                area.classList.add('drag-over');
+            });
+            
+            area.addEventListener('dragleave', () => {
+                area.classList.remove('drag-over');
+            });
+            
+            area.addEventListener('drop', (e) => {
+                e.preventDefault();
+                area.classList.remove('drag-over');
+                const type = id === 'photoUpload' ? 'photo' : 'video';
+                handleFiles(e.dataTransfer.files, type);
+            });
+        });
+
+        // Process uploaded files
+        function handleFiles(files, type) {
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    if (type === 'photo') {
+                        tempPhotos.push(e.target.result);
+                    } else {
+                        tempVideos.push(e.target.result);
+                    }
+                    updateFilePreview();
+                };
+                
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Update file preview
+        function updateFilePreview() {
+            const photoPreview = document.getElementById('photoPreview');
+            const videoPreview = document.getElementById('videoPreview');
+            
+            photoPreview.innerHTML = tempPhotos.map((src, index) => `
+                <div class="file-preview-item">
+                    <img src="${src}" alt="Photo ${index + 1}">
+                    <button class="remove-file" onclick="removeFile('photo', ${index})">×</button>
+                </div>
+            `).join('');
+            
+            videoPreview.innerHTML = tempVideos.map((src, index) => `
+                <div class="file-preview-item">
+                    <video src="${src}"></video>
+                    <button class="remove-file" onclick="removeFile('video', ${index})">×</button>
+                </div>
+            `).join('');
+        }
+
+        // Remove file from temp storage
+        function removeFile(type, index) {
+            if (type === 'photo') {
+                tempPhotos.splice(index, 1);
+            } else {
+                tempVideos.splice(index, 1);
+            }
+            updateFilePreview();
+        }
+
+        // Save member data
+        function saveMember() {
+            if (!currentEditId) return;
+            
+            const name = document.getElementById('nameInput').value.trim();
+            
+            familyData[currentEditId].name = name;
+            familyData[currentEditId].photos = [...tempPhotos];
+            familyData[currentEditId].videos = [...tempVideos];
+            
+            renderTree();
+            closeModal();
+            
+            alert('✅ Member saved successfully!');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('active');
+            currentEditId = null;
+            tempPhotos = [];
+            tempVideos = [];
+        }
+
+        // View gallery
+        function viewGallery(id) {
+            const person = familyData[id];
+            const photos = person.photos || [];
+            const videos = person.videos || [];
+            
+            document.getElementById('galleryTitle').textContent = `${person.name || 'Member'} - Gallery`;
+            
+            const galleryHTML = [
+                ...photos.map(src => `
+                    <div class="gallery-item">
+                        <img src="${src}" alt="Photo" onclick="window.open('${src}')">
+                    </div>
+                `),
+                ...videos.map(src => `
+                    <div class="gallery-item">
+                        <video src="${src}" controls></video>
+                    </div>
+                `)
+            ].join('');
+            
+            document.getElementById('galleryContent').innerHTML = galleryHTML;
+            document.getElementById('galleryModal').classList.add('active');
+        }
+
+        // Close gallery modal
+        function closeGalleryModal() {
+            document.getElementById('galleryModal').classList.remove('active');
+        }
+
+        // Export data
+        function exportData() {
+            const dataStr = JSON.stringify(familyData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'vamsa_family_tree_' + new Date().toISOString().split('T')[0] + '.json';
+            link.click();
+            URL.revokeObjectURL(url);
+            alert('✅ Family tree exported successfully!');
+        }
+
+        // Save to localStorage
+        function saveToLocalStorage() {
+            localStorage.setItem('vamsaFamilyTree', JSON.stringify(familyData));
+        }
+
+        // Load from localStorage
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('vamsaFamilyTree');
+            if (saved) {
+                familyData = JSON.parse(saved);
+            }
+        }
+
+        // Close modals on ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                closeGalleryModal();
+            }
+        });
+
+        // Initialize
+        loadFromLocalStorage();
+        renderTree();
+        
+        console.log('🌳 Vamsa Visual Family Tree loaded!');
+        console.log('📸 Click photo/video buttons to upload media');
+        console.log('✏️ Click edit to modify member details');
+    </script>
+</body>
+</html>
